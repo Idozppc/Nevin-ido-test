@@ -1,0 +1,1391 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>XYZ.ai — AI that actually ships.</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+<!-- Spline 3D viewer (web component) -->
+<script type="module" src="https://unpkg.com/@splinetool/viewer@1.9.48/build/spline-viewer.js"></script>
+
+<style>
+  :root {
+    --yellow: #FFE500;
+    --yellow-deep: #FFD60A;
+    --cream: #FFF6CC;
+    --ink: #0A0A0A;
+    --ink-soft: #1A1A1A;
+    --paper: #FAF6E9;
+    --pink: #FF3D8B;
+    --blue: #2E5BFF;
+    --green: #00C853;
+    --orange: #FF6B2C;
+    --lilac: #B9A6FF;
+    --shadow: 6px 6px 0 0 var(--ink);
+    --shadow-lg: 10px 10px 0 0 var(--ink);
+    --shadow-sm: 3px 3px 0 0 var(--ink);
+    --border: 3px solid var(--ink);
+    --border-thick: 4px solid var(--ink);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: "Inter Tight", system-ui, sans-serif;
+    background: var(--yellow);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+    font-size: 17px;
+    line-height: 1.5;
+  }
+
+  /* Background grid pattern across the page */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      radial-gradient(circle, rgba(10,10,10,0.07) 1px, transparent 1px);
+    background-size: 28px 28px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  main, header, footer { position: relative; z-index: 1; }
+
+  h1, h2, h3, h4 {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    font-weight: 700;
+    line-height: 0.92;
+    letter-spacing: -0.025em;
+  }
+
+  .mono {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  a { color: inherit; text-decoration: none; }
+
+  button { font-family: inherit; cursor: pointer; border: none; background: none; }
+
+  /* ---------- LAYOUT ---------- */
+  .container {
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+  @media (max-width: 720px) {
+    .container { padding: 0 20px; }
+  }
+
+  section { padding: 120px 0; position: relative; }
+  @media (max-width: 720px) {
+    section { padding: 72px 0; }
+  }
+
+  /* ---------- TOPBAR ---------- */
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--yellow);
+    border-bottom: var(--border-thick);
+  }
+  .topbar-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 76px;
+    max-width: 1360px;
+    margin: 0 auto;
+    padding: 0 32px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700;
+    font-size: 26px;
+    letter-spacing: -0.02em;
+  }
+  .nav {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .nav a {
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-weight: 500;
+    font-size: 15px;
+    transition: background .15s, transform .15s;
+  }
+  .nav a:hover {
+    background: var(--ink);
+    color: var(--yellow);
+    transform: translateY(-1px);
+  }
+  @media (max-width: 920px) { .nav { display: none; } }
+
+  /* ---------- BUTTONS ---------- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 22px;
+    border: var(--border);
+    background: var(--ink);
+    color: var(--yellow);
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.01em;
+    border-radius: 999px;
+    box-shadow: var(--shadow);
+    transition: transform .12s ease, box-shadow .12s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover { transform: translate(-2px, -2px); box-shadow: 8px 8px 0 0 var(--ink); }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 2px 2px 0 0 var(--ink); }
+
+  .btn.secondary { background: var(--paper); color: var(--ink); }
+  .btn.pink { background: var(--pink); color: white; }
+  .btn.blue { background: var(--blue); color: white; }
+  .btn.sm { padding: 10px 16px; font-size: 14px; box-shadow: var(--shadow-sm); }
+  .btn.sm:hover { box-shadow: 5px 5px 0 0 var(--ink); }
+
+  /* ---------- CARDS ---------- */
+  .card {
+    background: var(--paper);
+    border: var(--border-thick);
+    border-radius: 24px;
+    box-shadow: var(--shadow);
+    padding: 28px;
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .card:hover { transform: translate(-3px, -3px); box-shadow: var(--shadow-lg); }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: var(--paper);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 24px;
+    height: 2px;
+    background: var(--ink);
+  }
+
+  /* ---------- HERO ---------- */
+  .hero { padding: 80px 0 100px; position: relative; }
+
+  .hero h1 {
+    font-size: clamp(56px, 10vw, 160px);
+    line-height: 0.86;
+    letter-spacing: -0.04em;
+  }
+  .hero h1 .stroke { -webkit-text-stroke: 3px var(--ink); color: transparent; }
+  .hero h1 em {
+    font-style: normal;
+    background: var(--ink);
+    color: var(--yellow);
+    padding: 0 0.1em;
+    display: inline-block;
+    transform: rotate(-1.5deg);
+  }
+
+  .hero-sub {
+    font-size: clamp(18px, 1.6vw, 22px);
+    max-width: 580px;
+    margin-top: 32px;
+    line-height: 1.45;
+  }
+  .hero-cta { display: flex; gap: 16px; margin-top: 40px; flex-wrap: wrap; }
+
+  .sticker {
+    position: absolute;
+    border: var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    background: white;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ---------- MARQUEE ---------- */
+  .marquee {
+    border-top: var(--border-thick);
+    border-bottom: var(--border-thick);
+    background: var(--ink);
+    color: var(--yellow);
+    overflow: hidden;
+    padding: 22px 0;
+    position: relative;
+    z-index: 1;
+  }
+  .marquee-track {
+    display: flex;
+    gap: 56px;
+    animation: marquee 38s linear infinite;
+    white-space: nowrap;
+    width: max-content;
+  }
+  .marquee-track > span {
+    font-family: "Bricolage Grotesque", sans-serif;
+    font-weight: 700;
+    font-size: 32px;
+    letter-spacing: -0.02em;
+    display: inline-flex;
+    align-items: center;
+    gap: 56px;
+  }
+  @keyframes marquee {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+
+  /* ---------- SECTION TITLES ---------- */
+  .section-title {
+    font-size: clamp(44px, 6vw, 88px);
+    line-height: 0.94;
+    letter-spacing: -0.035em;
+    max-width: 14ch;
+  }
+  .section-head {
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 64px;
+    align-items: end;
+    margin-bottom: 64px;
+  }
+  @media (max-width: 900px) {
+    .section-head { grid-template-columns: 1fr; gap: 24px; align-items: start; }
+  }
+  .section-lede { font-size: 19px; max-width: 38ch; }
+
+  /* ---------- BG VARIANTS ---------- */
+  .bg-cream { background: var(--cream); border-top: var(--border-thick); border-bottom: var(--border-thick); }
+  .bg-paper { background: var(--paper); border-top: var(--border-thick); border-bottom: var(--border-thick); }
+  .bg-ink { background: var(--ink); color: var(--yellow); border-top: var(--border-thick); border-bottom: var(--border-thick); }
+  .bg-pink { background: var(--pink); color: white; border-top: var(--border-thick); border-bottom: var(--border-thick); }
+
+  /* ---------- UTIL ---------- */
+  .rotate-l { transform: rotate(-2deg); }
+  .rotate-r { transform: rotate(2deg); }
+  .rotate-l-3 { transform: rotate(-3deg); }
+  .rotate-r-3 { transform: rotate(3deg); }
+
+  /* ---------- LOADER ---------- */
+  .loader {
+    width: 44px; height: 44px;
+    border: 4px solid #0A0A0A;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  /* Hide the spline default attribution if shown by viewer */
+  spline-viewer::part(logo) { display: none !important; }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .marquee-track { animation: none; }
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+
+  <script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+/* ---------- TRIANGLE LOGO ---------- */
+function TriangleLogo({ size = 36, fill = "#0A0A0A", accent = "#FFE500", withFace = true }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 40 40" fill="none" aria-hidden>
+      <path
+        d="M20 4 L36 32 L4 32 Z"
+        fill={fill}
+        stroke={fill}
+        strokeWidth="3"
+        strokeLinejoin="round"
+      />
+      {withFace && (
+        <>
+          <circle cx="15" cy="22" r="1.6" fill={accent} />
+          <circle cx="25" cy="22" r="1.6" fill={accent} />
+          <path d="M15 27 Q20 30 25 27" stroke={accent} strokeWidth="1.6" strokeLinecap="round" fill="none" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/* ---------- WORDMARK ---------- */
+function Wordmark({ size = 26 }) {
+  return (
+    <span className="brand" style={{ fontSize: size }}>
+      <TriangleLogo size={size * 1.1} />
+      <span>XYZ<span style={{ color: "#FF3D8B" }}>.ai</span></span>
+    </span>
+  );
+}
+
+/* ---------- SPARKLE / STAR ---------- */
+function Sparkle({ size = 28, color = "#0A0A0A", style }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" style={style} aria-hidden>
+      <path
+        d="M16 2 L18.5 13.5 L30 16 L18.5 18.5 L16 30 L13.5 18.5 L2 16 L13.5 13.5 Z"
+        fill={color}
+      />
+    </svg>
+  );
+}
+
+/* ---------- BURST ---------- */
+function Burst({ size = 80, color = "#FF3D8B" }) {
+  const points = [];
+  const cx = 50, cy = 50;
+  const N = 16;
+  for (let i = 0; i < N * 2; i++) {
+    const r = i % 2 === 0 ? 48 : 30;
+    const a = (i / (N * 2)) * Math.PI * 2 - Math.PI / 2;
+    points.push(`${cx + Math.cos(a) * r},${cy + Math.sin(a) * r}`);
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden>
+      <polygon points={points.join(" ")} fill={color} stroke="#0A0A0A" strokeWidth="3" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* ---------- SQUIGGLE ---------- */
+function Squiggle({ width = 200, color = "#0A0A0A", style }) {
+  return (
+    <svg width={width} height="20" viewBox="0 0 200 20" style={style} aria-hidden preserveAspectRatio="none">
+      <path d="M0 10 Q 12.5 0, 25 10 T 50 10 T 75 10 T 100 10 T 125 10 T 150 10 T 175 10 T 200 10"
+        stroke={color} strokeWidth="3" fill="none" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/* ---------- BUTTON ---------- */
+function Button({ children, variant = "primary", size = "md", as = "button", href, onClick, style }) {
+  const cls = ["btn", variant, size === "sm" ? "sm" : ""].filter(Boolean).join(" ");
+  if (as === "a" || href) {
+    return <a className={cls} href={href} onClick={onClick} style={style}>{children}</a>;
+  }
+  return <button className={cls} onClick={onClick} style={style}>{children}</button>;
+}
+
+/* ---------- CARD ---------- */
+function Card({ children, className = "", style, color = "paper", rotate = 0 }) {
+  const bg = {
+    paper: "#FAF6E9",
+    cream: "#FFF6CC",
+    white: "#FFFFFF",
+    pink: "#FF3D8B",
+    blue: "#2E5BFF",
+    green: "#00C853",
+    orange: "#FF6B2C",
+    lilac: "#B9A6FF",
+    ink: "#0A0A0A",
+    yellow: "#FFE500",
+  }[color] || color;
+  const isDark = color === "ink" || color === "blue" || color === "pink";
+  return (
+    <div
+      className={"card " + className}
+      style={{
+        background: bg,
+        color: isDark ? "#FAF6E9" : "#0A0A0A",
+        transform: rotate ? `rotate(${rotate}deg)` : undefined,
+        ...style
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+/* ---------- SPLINE SCENE ---------- */
+function SplineScene({ scene, className, style }) {
+  const ref = useRef(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onLoad = () => setLoaded(true);
+    el.addEventListener("load", onLoad);
+    const t = setTimeout(() => setLoaded(true), 3500);
+    return () => {
+      el.removeEventListener("load", onLoad);
+      clearTimeout(t);
+    };
+  }, []);
+
+  return (
+    <div className={className} style={{ position: "relative", width: "100%", height: "100%", ...style }}>
+      {!loaded && (
+        <div style={{
+          position: "absolute", inset: 0, display: "flex",
+          alignItems: "center", justifyContent: "center",
+          background: "transparent", zIndex: 2, pointerEvents: "none"
+        }}>
+          <div className="loader" />
+        </div>
+      )}
+      {React.createElement("spline-viewer", {
+        ref,
+        url: scene,
+        "loading-anim-type": "spinner-small-dark",
+        "events-target": "global",
+        style: {
+          width: "100%",
+          height: "100%",
+          background: "transparent",
+          opacity: loaded ? 1 : 0,
+          transition: "opacity .4s ease",
+        },
+      })}
+    </div>
+  );
+}
+
+/* ---------- TOP NAV ---------- */
+function TopBar() {
+  const [open, setOpen] = useState(false);
+  return (
+    <header className="topbar">
+      <div className="topbar-inner">
+        <a href="#top" className="brand-link" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <Wordmark size={24} />
+        </a>
+        <nav className="nav">
+          <a href="#what">What we do</a>
+          <a href="#about">About</a>
+          <a href="#projects">Projects</a>
+          <a href="#contact">Contact</a>
+          <Button href="#contact" size="sm" style={{ marginLeft: 8 }}>
+            Start a project →
+          </Button>
+        </nav>
+        <button
+          className="mobile-toggle"
+          onClick={() => setOpen(!open)}
+          style={{
+            display: "none",
+            border: "3px solid #0A0A0A",
+            borderRadius: 12,
+            padding: "8px 12px",
+            background: "#FAF6E9",
+            fontWeight: 600,
+            fontFamily: "JetBrains Mono",
+            fontSize: 13,
+          }}
+          aria-label="Menu"
+        >
+          {open ? "✕" : "☰"} MENU
+        </button>
+      </div>
+      {open && (
+        <div style={{
+          borderTop: "3px solid #0A0A0A",
+          padding: "16px 20px",
+          background: "#FFE500",
+          display: "flex",
+          flexDirection: "column",
+          gap: 10,
+        }}>
+          {[["What we do", "#what"], ["About", "#about"], ["Projects", "#projects"], ["Contact", "#contact"]].map(([l, h]) => (
+            <a key={h} href={h} onClick={() => setOpen(false)} style={{ padding: "10px 12px", border: "2px solid #0A0A0A", borderRadius: 12, background: "#FAF6E9", fontWeight: 600 }}>{l}</a>
+          ))}
+        </div>
+      )}
+      <style>{`
+        @media (max-width: 920px) {
+          .mobile-toggle { display: inline-flex !important; }
+        }
+      `}</style>
+    </header>
+  );
+}
+
+/* ---------- HERO ---------- */
+function Hero() {
+  return (
+    <section className="hero" id="top">
+      {/* Decorative stickers */}
+      <div className="sticker rotate-l" style={{ top: 32, right: "8%", background: "#FF3D8B", color: "white" }}>
+        ★ NO BS, NO HYPE
+      </div>
+      <div className="sticker rotate-r" style={{ top: 240, right: "3%", background: "#2E5BFF", color: "white" }}>
+        SHIPPING SINCE 2024
+      </div>
+      <div className="sticker rotate-l-3" style={{ bottom: 80, left: "4%", background: "#00C853", color: "#0A0A0A" }}>
+        ✦ HUMAN-WRITTEN
+      </div>
+
+      <div style={{ position: "absolute", top: 100, left: "5%", opacity: 0.9 }}>
+        <Sparkle size={36} color="#FF3D8B" />
+      </div>
+      <div style={{ position: "absolute", bottom: 120, right: "30%" }}>
+        <Sparkle size={22} color="#2E5BFF" />
+      </div>
+
+      <div className="container">
+        <div className="hero-grid">
+          <div className="hero-text">
+            <span className="eyebrow">XYZ.AI &nbsp;/&nbsp; AN AI ENGINEERING STUDIO</span>
+            <h1 style={{ marginTop: 24 }}>
+              Ship AI<br/>
+              that <em>actually</em><br/>
+              <span className="stroke">works.</span>
+            </h1>
+            <p className="hero-sub">
+              We're a tiny team of AI engineers and product designers building the AI features that move your numbers — not the ones that look good in a deck.
+            </p>
+            <div className="hero-cta">
+              <Button href="#contact" variant="primary">
+                Start a project →
+              </Button>
+              <Button href="#projects" variant="secondary">
+                See our work
+              </Button>
+            </div>
+            <div style={{ marginTop: 36, display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ display: "flex" }}>
+                {["#FF3D8B", "#2E5BFF", "#00C853", "#FF6B2C"].map((c, i) => (
+                  <div key={i} style={{
+                    width: 38, height: 38, borderRadius: "50%",
+                    border: "3px solid #0A0A0A", background: c,
+                    marginLeft: i === 0 ? 0 : -10,
+                  }} />
+                ))}
+              </div>
+              <div style={{ fontSize: 14, lineHeight: 1.4, maxWidth: 240 }}>
+                <strong>22 teams shipping</strong> AI features built by us, right now.
+              </div>
+            </div>
+          </div>
+
+          <div className="hero-robot">
+            <div className="robot-frame">
+              <SplineScene
+                scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+                style={{ width: "100%", height: "100%" }}
+              />
+              <div className="robot-tag">
+                <span className="mono" style={{ fontSize: 11 }}>SAY HI →</span>
+                <strong style={{ fontFamily: "Bricolage Grotesque", fontSize: 18 }}>Drag me. I move.</strong>
+              </div>
+              <div className="robot-badge">
+                <Burst size={86} color="#FFE500" />
+                <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", textAlign: "center", lineHeight: 1, fontFamily: "Bricolage Grotesque", fontWeight: 800, fontSize: 14, color: "#0A0A0A", transform: "rotate(-8deg)" }}>
+                  LIVE<br/>3D
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        .hero-grid {
+          display: grid;
+          grid-template-columns: 1.05fr 1fr;
+          gap: 48px;
+          align-items: center;
+        }
+        .hero-robot { position: relative; }
+        .robot-frame {
+          position: relative;
+          aspect-ratio: 1 / 1.05;
+          background: #0A0A0A;
+          border: 4px solid #0A0A0A;
+          border-radius: 28px;
+          box-shadow: 12px 12px 0 0 #FF3D8B, 12px 12px 0 4px #0A0A0A;
+          overflow: hidden;
+          background-image:
+            radial-gradient(circle at 30% 20%, rgba(255,61,139,.18), transparent 50%),
+            radial-gradient(circle at 80% 90%, rgba(46,91,255,.22), transparent 55%),
+            linear-gradient(180deg, #1a1a1a 0%, #0a0a0a 100%);
+        }
+        .robot-tag {
+          position: absolute;
+          left: 16px; bottom: 16px;
+          background: #FFE500;
+          border: 3px solid #0A0A0A;
+          border-radius: 14px;
+          padding: 8px 12px;
+          display: flex; flex-direction: column; gap: 2px;
+          color: #0A0A0A;
+          box-shadow: 4px 4px 0 0 #0A0A0A;
+          transform: rotate(-3deg);
+        }
+        .robot-badge {
+          position: absolute;
+          top: -22px; right: -22px;
+          width: 86px; height: 86px;
+          transform: rotate(12deg);
+        }
+        @media (max-width: 980px) {
+          .hero-grid { grid-template-columns: 1fr; }
+          .robot-frame { aspect-ratio: 1 / 1; max-width: 520px; margin: 0 auto; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+/* ---------- MARQUEE ---------- */
+function Marquee() {
+  const items = ["BUILDING WITH GPT-5", "RAG SYSTEMS", "VOICE AGENTS", "FINE-TUNING", "EVALS", "AGENTIC WORKFLOWS", "MCP SERVERS", "VECTOR SEARCH", "FAST SHIPPING"];
+  const row = (
+    <span>
+      {items.map((it, i) => (
+        <React.Fragment key={i}>
+          {it}
+          <Sparkle size={20} color="#FFE500" style={{ display: "inline-block", verticalAlign: "middle" }} />
+        </React.Fragment>
+      ))}
+    </span>
+  );
+  return (
+    <div className="marquee">
+      <div className="marquee-track">
+        {row}{row}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- WHAT WE DO ---------- */
+function WhatWeDo() {
+  const services = [
+    { n: "01", t: "AI Strategy & Roadmaps", d: "We diagnose where AI actually moves your business — and where it's a distraction. Comes with a 90-day plan, not a 90-page deck.", c: "pink", icon: "🧭" },
+    { n: "02", t: "Custom Models & Fine-tuning", d: "Open-source or frontier — we pick the right model for your data, then make it yours. Evals included, hallucinations not.", c: "blue", icon: "🧠" },
+    { n: "03", t: "AI Agents & Automations", d: "Agentic workflows that handle the boring stuff: support, ops, sales follow-ups. Wired into your tools, observable end-to-end.", c: "green", icon: "🤖" },
+    { n: "04", t: "RAG & Knowledge Systems", d: "Search that actually finds things. We build retrieval pipelines on your docs, code, tickets — with answers your team will trust.", c: "lilac", icon: "📚" },
+    { n: "05", t: "AI Product Design", d: "Interfaces that make AI feel obvious. We design the prompts, the UX, the empty states, and the moments you didn't think about.", c: "orange", icon: "✦" },
+    { n: "06", t: "ML Infra & Evals", d: "The plumbing that keeps AI working at 3am. Pipelines, monitoring, evals, cost guardrails — so you can ship and sleep.", c: "cream", icon: "⚙︎" },
+  ];
+
+  return (
+    <section id="what" className="bg-cream" style={{ position: "relative" }}>
+      <div className="container">
+        <div className="section-head">
+          <div>
+            <span className="eyebrow">SERVICES &nbsp;/&nbsp; 01</span>
+            <h2 className="section-title" style={{ marginTop: 18 }}>
+              What we<br/>actually do.
+            </h2>
+          </div>
+          <p className="section-lede">
+            Six services. Zero buzzwords. We engage with teams from "we have an idea" to "ship it Tuesday" — and everything in between.
+          </p>
+        </div>
+
+        <div className="services-grid">
+          {services.map((s, i) => (
+            <Card key={i} color={s.c} className="service-card" rotate={i % 2 === 0 ? -0.6 : 0.6}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <span className="mono" style={{ fontSize: 13, opacity: 0.8 }}>{s.n}</span>
+                <div style={{
+                  width: 56, height: 56, borderRadius: 14,
+                  border: "3px solid #0A0A0A",
+                  background: "#FAF6E9", color: "#0A0A0A",
+                  display: "grid", placeItems: "center", fontSize: 28,
+                  boxShadow: "3px 3px 0 0 #0A0A0A",
+                }}>
+                  {s.icon}
+                </div>
+              </div>
+              <h3 style={{ fontSize: 28, marginTop: 22, lineHeight: 1 }}>{s.t}</h3>
+              <p style={{ marginTop: 14, fontSize: 16, lineHeight: 1.5 }}>{s.d}</p>
+              <a href="#contact" style={{
+                marginTop: 24, display: "inline-flex", alignItems: "center", gap: 6,
+                fontFamily: "JetBrains Mono", fontSize: 13, fontWeight: 600,
+                textTransform: "uppercase", borderBottom: "2px solid currentColor", paddingBottom: 2,
+              }}>
+                Talk to us →
+              </a>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        .services-grid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 28px;
+        }
+        .service-card { min-height: 320px; display: flex; flex-direction: column; }
+        .service-card p { flex: 1; }
+        @media (max-width: 980px) { .services-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 640px) { .services-grid { grid-template-columns: 1fr; } }
+      `}</style>
+    </section>
+  );
+}
+
+/* ---------- ABOUT US ---------- */
+function AboutUs() {
+  const stats = [
+    { n: "47", l: "Products shipped", c: "#FF3D8B" },
+    { n: "22", l: "Active teams", c: "#2E5BFF" },
+    { n: "$40M", l: "Revenue created", c: "#00C853" },
+    { n: "0", l: "Cold call campaigns", c: "#FF6B2C" },
+  ];
+  const team = [
+    { name: "Dax M.", role: "AI Engineer", c: "#FF3D8B", emoji: "🦊" },
+    { name: "Iris P.", role: "Co-founder, Design", c: "#2E5BFF", emoji: "🐙" },
+    { name: "Ren K.", role: "ML Lead", c: "#00C853", emoji: "🐸" },
+    { name: "Jules O.", role: "Product Engineer", c: "#FF6B2C", emoji: "🐯" },
+    { name: "Mira S.", role: "Co-founder, Eng", c: "#B9A6FF", emoji: "🐻" },
+    { name: "Theo W.", role: "Eval & Infra", c: "#FFE500", emoji: "🐼" },
+  ];
+  const principles = [
+    "Ship weekly, not someday.",
+    "Tell the truth about what AI can do today.",
+    "If a human can't trust it, we don't ship it.",
+    "Measure with real evals, not vibes.",
+    "Cap our hours so you cap your spend.",
+    "We work with builders, not committees.",
+  ];
+
+  return (
+    <section id="about" style={{ position: "relative" }}>
+      <div className="container">
+        <div className="section-head">
+          <div>
+            <span className="eyebrow">ABOUT &nbsp;/&nbsp; 02</span>
+            <h2 className="section-title" style={{ marginTop: 18 }}>
+              Tiny team.<br/>Massive output.
+            </h2>
+          </div>
+          <p className="section-lede">
+            XYZ.ai is six engineers and designers who got tired of watching AI projects die in committee. We work directly with founders and product teams — usually as your AI team, sometimes as backup for the one you have.
+          </p>
+        </div>
+
+        {/* Stats row */}
+        <div className="stats-row">
+          {stats.map((s, i) => (
+            <div key={i} className="stat-card" style={{ background: s.c }}>
+              <div className="stat-num">{s.n}</div>
+              <div className="stat-label">{s.l}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Team */}
+        <div style={{ marginTop: 80 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
+            <h3 style={{ fontSize: 36 }}>The whole team. <span style={{ color: "#FF3D8B" }}>↓</span></h3>
+            <Squiggle width={120} />
+          </div>
+          <div className="team-grid">
+            {team.map((m, i) => (
+              <div key={i} className="team-card" style={{ transform: `rotate(${i % 2 ? 1.5 : -1.5}deg)` }}>
+                <div className="avatar" style={{ background: m.c }}>
+                  <span style={{ fontSize: 56, filter: "saturate(1.1)" }}>{m.emoji}</span>
+                </div>
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ fontFamily: "Bricolage Grotesque", fontWeight: 700, fontSize: 22, lineHeight: 1 }}>{m.name}</div>
+                  <div className="mono" style={{ fontSize: 12, marginTop: 6, opacity: 0.7, textTransform: "uppercase" }}>{m.role}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Principles */}
+        <div style={{ marginTop: 96 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
+            <h3 style={{ fontSize: 36 }}>How we work.</h3>
+          </div>
+          <ul className="principles">
+            {principles.map((p, i) => (
+              <li key={i}>
+                <span className="mono">{String(i + 1).padStart(2, "0")}</span>
+                <span>{p}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
+      <style>{`
+        .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .stat-card {
+          border: 4px solid #0A0A0A; border-radius: 22px;
+          padding: 28px; box-shadow: 6px 6px 0 0 #0A0A0A;
+          color: #0A0A0A;
+        }
+        .stat-num {
+          font-family: "Bricolage Grotesque", sans-serif;
+          font-weight: 800; font-size: clamp(48px, 5.5vw, 84px);
+          line-height: 0.9; letter-spacing: -0.04em;
+        }
+        .stat-label { font-family: "JetBrains Mono", monospace; font-size: 13px; font-weight: 600; text-transform: uppercase; margin-top: 8px; }
+        @media (max-width: 760px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+
+        .team-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 18px; }
+        .team-card {
+          background: #FAF6E9; border: 3px solid #0A0A0A; border-radius: 18px;
+          padding: 16px; box-shadow: 4px 4px 0 0 #0A0A0A;
+        }
+        .avatar {
+          aspect-ratio: 1 / 1; border: 3px solid #0A0A0A; border-radius: 14px;
+          display: grid; place-items: center;
+        }
+        @media (max-width: 980px) { .team-grid { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 540px) { .team-grid { grid-template-columns: repeat(2, 1fr); } }
+
+        .principles {
+          list-style: none;
+          display: grid; grid-template-columns: repeat(2, 1fr);
+          gap: 14px;
+        }
+        .principles li {
+          display: flex; gap: 16px; align-items: baseline;
+          padding: 18px 22px; background: #FAF6E9;
+          border: 3px solid #0A0A0A; border-radius: 14px;
+          font-size: 18px; font-weight: 500;
+          box-shadow: 4px 4px 0 0 #0A0A0A;
+        }
+        .principles li .mono { font-size: 13px; color: #FF3D8B; }
+        @media (max-width: 760px) { .principles { grid-template-columns: 1fr; } }
+      `}</style>
+    </section>
+  );
+}
+
+/* ---------- PROJECT ART (placeholder cartoon visuals) ---------- */
+function ProjectArt({ seed }) {
+  const variants = [
+    // 0: speech bubbles
+    (
+      <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" style={{ width: "100%", height: "100%" }}>
+        <rect width="400" height="200" fill="#FF3D8B" />
+        <g stroke="#0A0A0A" strokeWidth="3" fill="#FAF6E9">
+          <path d="M40 50 H180 a16 16 0 0 1 16 16 v40 a16 16 0 0 1 -16 16 H80 l-20 20 v-20 H40 a16 16 0 0 1 -16 -16 v-40 a16 16 0 0 1 16 -16 z"/>
+          <path d="M220 100 H360 a16 16 0 0 1 16 16 v40 a16 16 0 0 1 -16 16 H240 l-20 20 v-20 a16 16 0 0 1 -16 -16 v-20 a16 16 0 0 1 16 -16 z" fill="#FFE500"/>
+        </g>
+        <g fill="#0A0A0A">
+          <circle cx="70" cy="80" r="4"/><circle cx="90" cy="80" r="4"/><circle cx="110" cy="80" r="4"/>
+          <rect x="240" y="125" width="100" height="6" rx="3"/>
+          <rect x="240" y="140" width="60" height="6" rx="3"/>
+        </g>
+      </svg>
+    ),
+    // 1: bar chart up
+    (
+      <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" style={{ width: "100%", height: "100%" }}>
+        <rect width="400" height="200" fill="#2E5BFF"/>
+        <g stroke="#0A0A0A" strokeWidth="3">
+          <rect x="40" y="140" width="36" height="40" fill="#FFE500"/>
+          <rect x="92" y="110" width="36" height="70" fill="#FAF6E9"/>
+          <rect x="144" y="80" width="36" height="100" fill="#FF3D8B"/>
+          <rect x="196" y="50" width="36" height="130" fill="#00C853"/>
+          <path d="M40 60 L 280 30" stroke="#FAF6E9" strokeWidth="4" fill="none"/>
+          <polygon points="280,30 268,28 270,42" fill="#FAF6E9"/>
+        </g>
+      </svg>
+    ),
+    // 2: book / docs
+    (
+      <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" style={{ width: "100%", height: "100%" }}>
+        <rect width="400" height="200" fill="#FFE500"/>
+        <g stroke="#0A0A0A" strokeWidth="3" fill="#FAF6E9">
+          <rect x="60" y="40" width="120" height="140" rx="8"/>
+          <rect x="220" y="40" width="120" height="140" rx="8" fill="#FF3D8B"/>
+        </g>
+        <g stroke="#0A0A0A" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="80" y1="70" x2="160" y2="70"/><line x1="80" y1="90" x2="150" y2="90"/>
+          <line x1="80" y1="110" x2="160" y2="110"/><line x1="80" y1="130" x2="140" y2="130"/>
+          <line x1="240" y1="70" x2="320" y2="70" stroke="#FAF6E9"/>
+          <line x1="240" y1="90" x2="310" y2="90" stroke="#FAF6E9"/>
+          <line x1="240" y1="110" x2="320" y2="110" stroke="#FAF6E9"/>
+        </g>
+        <circle cx="195" cy="100" r="22" fill="#0A0A0A" stroke="#0A0A0A" strokeWidth="3"/>
+        <text x="195" y="107" textAnchor="middle" fill="#FFE500" fontFamily="Bricolage Grotesque" fontWeight="800" fontSize="22">?</text>
+      </svg>
+    ),
+    // 3: graduation cap / sparkles
+    (
+      <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" style={{ width: "100%", height: "100%" }}>
+        <rect width="400" height="200" fill="#00C853"/>
+        <g stroke="#0A0A0A" strokeWidth="3" strokeLinejoin="round">
+          <polygon points="200,40 320,90 200,140 80,90" fill="#0A0A0A"/>
+          <path d="M120 105 V145 q80 30 160 0 V105" fill="#FAF6E9"/>
+          <line x1="320" y1="90" x2="320" y2="140" />
+          <circle cx="320" cy="148" r="6" fill="#FFE500"/>
+        </g>
+        <g fill="#FFE500" stroke="#0A0A0A" strokeWidth="2">
+          <polygon points="60,160 66,170 76,172 66,176 60,186 54,176 44,172 54,170"/>
+          <polygon points="350,40 354,48 362,50 354,52 350,60 346,52 338,50 346,48"/>
+        </g>
+      </svg>
+    ),
+    // 4: shield / fraud
+    (
+      <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" style={{ width: "100%", height: "100%" }}>
+        <rect width="400" height="200" fill="#B9A6FF"/>
+        <g stroke="#0A0A0A" strokeWidth="3" strokeLinejoin="round">
+          <path d="M200 30 L 280 60 V 110 Q 280 160 200 180 Q 120 160 120 110 V 60 Z" fill="#FAF6E9"/>
+          <path d="M170 105 L 195 130 L 240 80" fill="none" stroke="#0A0A0A" strokeWidth="6" strokeLinecap="round"/>
+        </g>
+        <g fill="#FF3D8B" stroke="#0A0A0A" strokeWidth="2.5">
+          <circle cx="60" cy="80" r="14"/><circle cx="340" cy="140" r="14"/>
+        </g>
+      </svg>
+    ),
+    // 5: phone / waveform
+    (
+      <svg viewBox="0 0 400 200" preserveAspectRatio="xMidYMid slice" style={{ width: "100%", height: "100%" }}>
+        <rect width="400" height="200" fill="#FF6B2C"/>
+        <g stroke="#0A0A0A" strokeWidth="3" strokeLinejoin="round">
+          <rect x="60" y="40" width="80" height="130" rx="14" fill="#0A0A0A"/>
+          <rect x="68" y="50" width="64" height="100" rx="6" fill="#FFE500"/>
+          <circle cx="100" cy="160" r="5" fill="#FAF6E9"/>
+        </g>
+        <g stroke="#FAF6E9" strokeWidth="5" strokeLinecap="round">
+          <line x1="180" y1="100" x2="180" y2="100"/>
+          <line x1="200" y1="80" x2="200" y2="120"/>
+          <line x1="220" y1="60" x2="220" y2="140"/>
+          <line x1="240" y1="80" x2="240" y2="120"/>
+          <line x1="260" y1="50" x2="260" y2="150"/>
+          <line x1="280" y1="80" x2="280" y2="120"/>
+          <line x1="300" y1="70" x2="300" y2="130"/>
+          <line x1="320" y1="90" x2="320" y2="110"/>
+          <line x1="340" y1="80" x2="340" y2="120"/>
+        </g>
+      </svg>
+    ),
+  ];
+  return variants[seed % variants.length];
+}
+
+/* ---------- OUR PROJECTS ---------- */
+function OurProjects() {
+  const projects = [
+    {
+      t: "Lattice", h: "The support agent that closes 60% of tickets, alone.",
+      meta: "B2B SaaS · Customer Ops",
+      result: "60% auto-resolution",
+      bg: "#FF3D8B", featured: true,
+      tag: "Featured case study",
+    },
+    {
+      t: "Forge", h: "From a spreadsheet to an AI-native CRM in 9 weeks.",
+      meta: "Series A · Sales tech",
+      result: "3.4× pipeline velocity",
+      bg: "#2E5BFF",
+    },
+    {
+      t: "Halcyon", h: "Doc search that lawyers actually trust.",
+      meta: "LegalTech",
+      result: "94% citation accuracy",
+      bg: "#FFE500",
+    },
+    {
+      t: "Kindred", h: "An AI tutor that 240,000 students use weekly.",
+      meta: "EdTech",
+      result: "+38% test scores",
+      bg: "#00C853",
+    },
+    {
+      t: "Maple", h: "Fraud detection retrained for a new vertical.",
+      meta: "Fintech",
+      result: "−84% chargebacks",
+      bg: "#B9A6FF",
+    },
+    {
+      t: "Pilot", h: "Voice AI that takes calls for 12 healthcare clinics.",
+      meta: "Healthcare ops",
+      result: "11k calls/mo",
+      bg: "#FF6B2C",
+    },
+  ];
+
+  return (
+    <section id="projects" className="bg-paper" style={{ position: "relative" }}>
+      <div className="container">
+        <div className="section-head">
+          <div>
+            <span className="eyebrow">WORK &nbsp;/&nbsp; 03</span>
+            <h2 className="section-title" style={{ marginTop: 18 }}>
+              Recent things<br/>we shipped.
+            </h2>
+          </div>
+          <p className="section-lede">
+            A sample of work from the last 18 months. All of it in production. All of it with a result we'd put in writing.
+          </p>
+        </div>
+
+        <div className="proj-grid">
+          {projects.map((p, i) => (
+            <a key={i} href="#contact" className={"proj-card" + (p.featured ? " featured" : "")} style={{ background: p.bg }}>
+              <div className="proj-art">
+                <ProjectArt seed={i} />
+                {p.tag && (
+                  <span style={{
+                    position: "absolute", top: 14, left: 14,
+                    background: "#0A0A0A", color: "#FFE500",
+                    padding: "6px 10px", borderRadius: 8,
+                    fontFamily: "JetBrains Mono", fontSize: 11, fontWeight: 700,
+                    textTransform: "uppercase", letterSpacing: "0.06em",
+                  }}>
+                    {p.tag}
+                  </span>
+                )}
+              </div>
+              <div className="proj-body">
+                <div className="proj-meta mono">{p.meta}</div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, marginTop: 8 }}>
+                  <div>
+                    <div className="proj-name">{p.t}</div>
+                    <div className="proj-headline">{p.h}</div>
+                  </div>
+                  <div className="proj-result">
+                    <div className="mono" style={{ fontSize: 11, opacity: 0.8 }}>RESULT</div>
+                    <div style={{ fontFamily: "Bricolage Grotesque", fontWeight: 700, fontSize: 22, lineHeight: 1, marginTop: 4 }}>{p.result}</div>
+                  </div>
+                </div>
+              </div>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      <style>{`
+        .proj-grid {
+          display: grid;
+          grid-template-columns: repeat(6, 1fr);
+          grid-auto-rows: minmax(280px, auto);
+          gap: 24px;
+        }
+        .proj-card {
+          grid-column: span 3;
+          border: 4px solid #0A0A0A; border-radius: 24px;
+          box-shadow: 6px 6px 0 0 #0A0A0A;
+          overflow: hidden; display: flex; flex-direction: column;
+          transition: transform .15s ease, box-shadow .15s ease;
+          color: #0A0A0A;
+        }
+        .proj-card:hover { transform: translate(-3px, -3px); box-shadow: 10px 10px 0 0 #0A0A0A; }
+        .proj-card.featured { grid-column: span 6; }
+        .proj-card.featured .proj-art { aspect-ratio: 16/7; }
+        .proj-art {
+          position: relative; aspect-ratio: 16/9;
+          border-bottom: 4px solid #0A0A0A;
+          overflow: hidden;
+        }
+        .proj-body { padding: 22px; background: #FAF6E9; flex: 1; }
+        .proj-meta { font-size: 12px; text-transform: uppercase; opacity: 0.7; }
+        .proj-name { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 32px; line-height: 1; }
+        .proj-headline { font-size: 17px; margin-top: 8px; max-width: 38ch; line-height: 1.35; }
+        .proj-result {
+          background: #0A0A0A; color: #FFE500;
+          padding: 12px 14px; border-radius: 12px;
+          min-width: 140px; text-align: right; flex-shrink: 0;
+        }
+        @media (max-width: 980px) {
+          .proj-grid { grid-template-columns: repeat(2, 1fr); }
+          .proj-card, .proj-card.featured { grid-column: span 2; }
+        }
+        @media (max-width: 640px) {
+          .proj-grid { grid-template-columns: 1fr; }
+          .proj-card, .proj-card.featured { grid-column: span 1; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+/* ---------- CONTACT ---------- */
+function Contact() {
+  const [form, setForm] = useState({ name: "", email: "", company: "", project: "ai-strategy", budget: "25-50k", message: "" });
+  const [sent, setSent] = useState(false);
+  const upd = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+  return (
+    <section id="contact" className="bg-ink" style={{ position: "relative", overflow: "hidden" }}>
+      {/* Decorative bursts */}
+      <div style={{ position: "absolute", top: 60, right: -40, transform: "rotate(15deg)" }}>
+        <Burst size={140} color="#FF3D8B" />
+      </div>
+      <div style={{ position: "absolute", bottom: 40, left: -40, transform: "rotate(-10deg)" }}>
+        <Burst size={120} color="#FFE500" />
+      </div>
+
+      <div className="container">
+        <div className="contact-grid">
+          <div>
+            <span className="eyebrow" style={{ color: "#FFE500" }}>CONTACT &nbsp;/&nbsp; 04</span>
+            <h2 className="section-title" style={{ marginTop: 18, color: "#FFE500" }}>
+              Let's build<br/>something <em style={{ background: "#FF3D8B", color: "white", fontStyle: "normal", padding: "0 0.1em", display: "inline-block", transform: "rotate(-2deg)" }}>good.</em>
+            </h2>
+            <p style={{ marginTop: 28, fontSize: 19, color: "#FAF6E9", maxWidth: "38ch" }}>
+              We pick up new work in 1–2 week sprints. Tell us what you're trying to ship — we'll come back within 48 hours with a real plan and a real number.
+            </p>
+            <div style={{ marginTop: 36, display: "flex", flexDirection: "column", gap: 14 }}>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", color: "#FAF6E9" }}>
+                <span className="mono" style={{ fontSize: 12, color: "#FFE500" }}>EMAIL</span>
+                <strong style={{ fontFamily: "Bricolage Grotesque", fontSize: 22 }}>hi@xyz.ai</strong>
+              </div>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", color: "#FAF6E9" }}>
+                <span className="mono" style={{ fontSize: 12, color: "#FFE500" }}>HQ</span>
+                <strong style={{ fontFamily: "Bricolage Grotesque", fontSize: 22 }}>Brooklyn, NY · Remote-friendly</strong>
+              </div>
+              <div style={{ display: "flex", gap: 12, alignItems: "center", color: "#FAF6E9" }}>
+                <span className="mono" style={{ fontSize: 12, color: "#FFE500" }}>HOURS</span>
+                <strong style={{ fontFamily: "Bricolage Grotesque", fontSize: 22 }}>Mon–Fri · 9-5 ET</strong>
+              </div>
+            </div>
+            <div style={{ marginTop: 40, display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <span className="pill" style={{ background: "#FFE500" }}>★ Replies in 48h</span>
+              <span className="pill" style={{ background: "#FF3D8B", color: "white", borderColor: "#FAF6E9" }}>✦ NDA-friendly</span>
+              <span className="pill" style={{ background: "#00C853" }}>● Booking Q3</span>
+            </div>
+          </div>
+
+          <form
+            className="contact-form"
+            onSubmit={(e) => { e.preventDefault(); setSent(true); }}
+          >
+            {sent ? (
+              <div style={{ padding: 48, textAlign: "center" }}>
+                <div style={{ fontSize: 64 }}>✦</div>
+                <h3 style={{ fontSize: 36, marginTop: 12 }}>Got it!</h3>
+                <p style={{ marginTop: 12, fontSize: 17 }}>
+                  We'll reply to <strong>{form.email || "you"}</strong> within 48 hours.<br/>
+                  In the meantime, go log off.
+                </p>
+                <Button onClick={() => { setSent(false); setForm({ name: "", email: "", company: "", project: "ai-strategy", budget: "25-50k", message: "" }); }} style={{ marginTop: 24 }}>
+                  Send another →
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="form-row">
+                  <label>
+                    <span>Your name</span>
+                    <input required value={form.name} onChange={upd("name")} placeholder="Sam Builder" />
+                  </label>
+                  <label>
+                    <span>Email</span>
+                    <input required type="email" value={form.email} onChange={upd("email")} placeholder="sam@company.com" />
+                  </label>
+                </div>
+                <label>
+                  <span>Company</span>
+                  <input value={form.company} onChange={upd("company")} placeholder="Acme Inc." />
+                </label>
+                <div className="form-row">
+                  <label>
+                    <span>What do you need?</span>
+                    <select value={form.project} onChange={upd("project")}>
+                      <option value="ai-strategy">AI Strategy & Roadmap</option>
+                      <option value="custom-models">Custom Models / Fine-tuning</option>
+                      <option value="agents">AI Agents & Automations</option>
+                      <option value="rag">RAG / Knowledge Systems</option>
+                      <option value="design">AI Product Design</option>
+                      <option value="infra">ML Infra & Evals</option>
+                      <option value="other">Something else</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span>Budget</span>
+                    <select value={form.budget} onChange={upd("budget")}>
+                      <option value="under-25k">&lt; $25k</option>
+                      <option value="25-50k">$25k–$50k</option>
+                      <option value="50-150k">$50k–$150k</option>
+                      <option value="150k+">$150k+</option>
+                      <option value="unsure">Not sure yet</option>
+                    </select>
+                  </label>
+                </div>
+                <label>
+                  <span>Tell us what you're building</span>
+                  <textarea rows="5" value={form.message} onChange={upd("message")} placeholder="A paragraph or two — links and Looms welcome." />
+                </label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 8, gap: 16, flexWrap: "wrap" }}>
+                  <span className="mono" style={{ fontSize: 12, color: "#0A0A0A" }}>Or just email <strong>hi@xyz.ai</strong></span>
+                  <Button as="button">
+                    Send it →
+                  </Button>
+                </div>
+              </>
+            )}
+          </form>
+        </div>
+      </div>
+
+      <style>{`
+        .contact-grid {
+          display: grid;
+          grid-template-columns: 1fr 1.1fr;
+          gap: 64px;
+          align-items: start;
+        }
+        .contact-form {
+          background: #FFE500;
+          border: 4px solid #0A0A0A;
+          border-radius: 28px;
+          box-shadow: 12px 12px 0 0 #FF3D8B, 12px 12px 0 4px #0A0A0A;
+          padding: 32px;
+          display: flex; flex-direction: column; gap: 14px;
+          color: #0A0A0A;
+        }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .contact-form label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600; }
+        .contact-form span { font-family: "JetBrains Mono", monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+        .contact-form input, .contact-form select, .contact-form textarea {
+          font-family: "Inter Tight", sans-serif;
+          font-size: 16px;
+          padding: 14px 16px;
+          border: 3px solid #0A0A0A;
+          border-radius: 12px;
+          background: #FAF6E9;
+          color: #0A0A0A;
+          font-weight: 500;
+        }
+        .contact-form input:focus, .contact-form select:focus, .contact-form textarea:focus {
+          outline: none;
+          box-shadow: 4px 4px 0 0 #0A0A0A;
+          transform: translate(-1px, -1px);
+        }
+        .contact-form textarea { resize: vertical; min-height: 120px; }
+        @media (max-width: 980px) {
+          .contact-grid { grid-template-columns: 1fr; gap: 40px; }
+          .form-row { grid-template-columns: 1fr; }
+        }
+      `}</style>
+    </section>
+  );
+}
+
+/* ---------- FOOTER COLUMN ---------- */
+function FooterCol({ title, items }) {
+  return (
+    <div>
+      <div className="mono" style={{ fontSize: 12, textTransform: "uppercase", marginBottom: 14, opacity: 0.7 }}>{title}</div>
+      <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: 8 }}>
+        {items.map(([l, h]) => (
+          <li key={l}><a href={h} style={{ fontSize: 16, fontWeight: 500, borderBottom: "2px solid transparent" }} onMouseEnter={(e) => e.currentTarget.style.borderBottomColor = "#0A0A0A"} onMouseLeave={(e) => e.currentTarget.style.borderBottomColor = "transparent"}>{l}</a></li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* ---------- FOOTER ---------- */
+function Footer() {
+  return (
+    <footer style={{ background: "#FFE500", borderTop: "4px solid #0A0A0A", padding: "56px 0 28px" }}>
+      <div className="container">
+        <div style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr 1fr 1fr", gap: 32, alignItems: "start" }} className="foot-grid">
+          <div>
+            <Wordmark size={28} />
+            <p style={{ marginTop: 16, fontSize: 15, lineHeight: 1.5, maxWidth: "32ch" }}>
+              An independent AI engineering studio. We turn ambitious teams into AI-native ones.
+            </p>
+          </div>
+          <FooterCol title="Studio" items={[["What we do", "#what"], ["About", "#about"], ["Projects", "#projects"], ["Contact", "#contact"]]} />
+          <FooterCol title="Elsewhere" items={[["X / Twitter", "#"], ["GitHub", "#"], ["LinkedIn", "#"], ["Read.cv", "#"]]} />
+          <FooterCol title="Legal" items={[["Privacy", "#"], ["Terms", "#"], ["Trust center", "#"], ["DPA", "#"]]} />
+        </div>
+        <div style={{
+          marginTop: 48, paddingTop: 24, borderTop: "3px solid #0A0A0A",
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          gap: 16, flexWrap: "wrap"
+        }}>
+          <div className="mono" style={{ fontSize: 12 }}>© 2026 XYZ.AI · BUILT BY HUMANS · POWERED BY COFFEE</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span className="mono" style={{ fontSize: 12 }}>STATUS</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#00C853", border: "2px solid #0A0A0A" }} />
+              All systems shipping
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @media (max-width: 760px) {
+          .foot-grid { grid-template-columns: 1fr 1fr !important; }
+        }
+      `}</style>
+    </footer>
+  );
+}
+
+/* ---------- MAIN APP ---------- */
+function App() {
+  return (
+    <>
+      <TopBar />
+      <main>
+        <Hero />
+        <Marquee />
+        <WhatWeDo />
+        <AboutUs />
+        <OurProjects />
+        <Contact />
+      </main>
+      <Footer />
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+  </script>
+</body>
+</html>
